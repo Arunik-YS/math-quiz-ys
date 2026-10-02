@@ -177,10 +177,10 @@
   <!-- 이름 입력 화면 -->
   <div class="card" id="name-screen">
     <h1>연산 실력 쑥쑥! 퀴즈</h1>
-    <p style="color: #64748b; margin-bottom: 16px; font-size: 0.95rem;">이름을 적고 시작하세요.<br><strong>[곱셈 10개 ➔ 나눗셈 10개 ➔ 혼합]</strong> 순서로 진격!</p>
+    <p style="color: #64748b; margin-bottom: 16px; font-size: 0.95rem;">이름을 적고 시작하세요.<br><strong>[곱셈 30개 ➔ 나눗셈 30개 ➔ 혼합]</strong> 순서</p>
     
     <div class="name-input-group">
-      <input type="text" id="student-name-input" placeholder="예: 1번 홍길동" maxlength="15" autocomplete="off">
+      <input type="text" id="student-name-input" placeholder="예: 김반곡" maxlength="15" autocomplete="off">
       <button class="start-btn" onclick="startQuiz()">도전 시작하기</button>
     </div>
   </div>
@@ -228,7 +228,7 @@
     // ----------------------------------------------------
     // [설정] 단계 통과 기준 문제 수 (원하는 숫자로 수정 가능)
     // ----------------------------------------------------
-    const PASS_THRESHOLD = 10; // 각 단계별로 10개씩 맞히면 통과!
+    const PASS_THRESHOLD = 30; // 각 단계별로 10개씩 맞히면 통과!
 
     const firebaseConfig = {
       apiKey: "AIzaSyAkeZtBoYd-3zNcj7KG-98twjXTcAnkOVY",
@@ -259,7 +259,7 @@
     function getModeText(mode) {
       if (mode === 'multi') return '✖️ 곱셈 단계';
       if (mode === 'div') return '➗ 나눗셈 단계';
-      return '🔀 마스터 혼합 단계';
+      return '🔀 무한의 문제 단계';
     }
 
     function startQuiz() {
@@ -437,7 +437,7 @@
         } else if (selectedMode === 'div' && stageSolvedCount >= PASS_THRESHOLD) {
           selectedMode = 'mix';
           stageSolvedCount = 0;
-          alert(`🎉 대단합니다! 나눗셈 ${PASS_THRESHOLD}문제를 통과하여 '마스터 혼합' 단계에 진입합니다!`);
+          alert(`🎉 대단합니다! 나눗셈 ${PASS_THRESHOLD}문제를 통과하여 '무한의 문제' 단계에 진입합니다!`);
         }
 
         document.getElementById('display-student-info').textContent = `👤 ${studentName} (${getModeText(selectedMode)})`;
