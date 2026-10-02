@@ -33,17 +33,12 @@
       width: 100%;
       max-width: 420px;
       text-align: center;
-      position: relative;
     }
     h1 {
       font-size: 1.3rem;
       color: #334155;
       margin-top: 0;
       margin-bottom: 16px;
-    }
-
-    .name-input-group {
-      margin: 16px 0;
     }
     .name-input-group input {
       width: 100%;
@@ -55,41 +50,6 @@
       outline: none;
       margin-bottom: 16px;
     }
-    .name-input-group input:focus { border-color: #3b82f6; }
-
-    /* 영역 선택 버튼 스타일 (3개 균등 배치) */
-    .mode-title {
-      font-size: 0.9rem;
-      font-weight: bold;
-      color: #475569;
-      margin-bottom: 10px;
-      text-align: left;
-    }
-    .mode-buttons {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 20px;
-    }
-    .mode-btn {
-      padding: 12px 4px;
-      border: 2px solid #e2e8f0;
-      border-radius: 12px;
-      background-color: #f8fafc;
-      color: #64748b;
-      font-size: 0.9rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-    }
-    .mode-btn.active {
-      border-color: #3b82f6;
-      background-color: #eff6ff;
-      color: #2563eb;
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-    }
-
     .start-btn {
       width: 100%;
       padding: 14px;
@@ -203,7 +163,6 @@
       font-size: 1.4rem;
       font-weight: 700;
       color: #334155;
-      box-shadow: 0 3px 6px rgba(0,0,0,0.04);
       cursor: pointer;
     }
     .key-btn:active { background-color: #e2e8f0; }
@@ -215,26 +174,18 @@
 </head>
 <body>
 
-  <!-- 1. 이름 및 학습 영역 선택 화면 -->
+  <!-- 이름 입력 화면 -->
   <div class="card" id="name-screen">
     <h1>연산 실력 쑥쑥! 퀴즈</h1>
-    <p style="color: #64748b; margin-bottom: 16px; font-size: 0.95rem;">이름을 적고 연습할 영역을 선택하세요.</p>
+    <p style="color: #64748b; margin-bottom: 16px; font-size: 0.95rem;">이름을 적고 시작하세요.<br><strong>[곱셈 10개 ➔ 나눗셈 10개 ➔ 혼합]</strong> 순서로 진격!</p>
     
     <div class="name-input-group">
       <input type="text" id="student-name-input" placeholder="예: 1번 홍길동" maxlength="15" autocomplete="off">
-      
-      <div class="mode-title">학습 영역 선택</div>
-      <div class="mode-buttons">
-        <button type="button" class="mode-btn active" id="btn-multi" onclick="selectMode('multi')">✖️ 곱셈</button>
-        <button type="button" class="mode-btn" id="btn-div" onclick="selectMode('div')">➗ 나눗셈</button>
-        <button type="button" class="mode-btn" id="btn-mix" onclick="selectMode('mix')">🔀 혼합</button>
-      </div>
-
-      <button class="start-btn" onclick="startQuiz()">퀴즈 시작하기</button>
+      <button class="start-btn" onclick="startQuiz()">도전 시작하기</button>
     </div>
   </div>
 
-  <!-- 2. 퀴즈 화면 -->
+  <!-- 퀴즈 화면 -->
   <div class="card hidden" id="quiz-screen">
     <div style="font-size: 0.9rem; color: #64748b; font-weight: bold; margin-bottom: 10px;" id="display-student-info"></div>
 
@@ -254,9 +205,7 @@
     </div>
 
     <div class="notice-msg" id="notice-msg"></div>
-
     <div class="problem-box" id="problem-text"></div>
-
     <div class="inputs-container" id="inputs-container"></div>
 
     <div class="keypad">
@@ -277,8 +226,10 @@
 
   <script>
     // ----------------------------------------------------
-    // [설정] 본인의 Firebase 설정 정보를 아래에 붙여넣으세요!
+    // [설정] 단계 통과 기준 문제 수 (원하는 숫자로 수정 가능)
     // ----------------------------------------------------
+    const PASS_THRESHOLD = 10; // 각 단계별로 10개씩 맞히면 통과!
+
     const firebaseConfig = {
       apiKey: "AIzaSyAkeZtBoYd-3zNcj7KG-98twjXTcAnkOVY",
       authDomain: "math-quiz-ys.firebaseapp.com",
@@ -293,9 +244,10 @@
     const database = firebase.database();
 
     let studentName = '';
-    let selectedMode = 'multi'; // 선택 가능 모드: 'multi'(곱셈), 'div'(나눗셈), 'mix'(혼합)
+    let selectedMode = 'multi'; // 곱셈부터 시작
+    let stageSolvedCount = 0;   // 현재 단계에서 맞힌 문제 수
     let studentKey = '';
-    let solvedCount = 0;
+    let totalSolvedCount = 0;
     let wrongCount = 0;
     let startTime = 0;
     let isChecking = false;
@@ -304,54 +256,10 @@
     let activeBoxId = 'box-ans';
     let inputValues = { ans: '', q: '', r: '' };
 
-    // 학습 영역 선택 함수
-    function selectMode(mode) {
-      selectedMode = mode;
-      document.getElementById('btn-multi').classList.toggle('active', mode === 'multi');
-      document.getElementById('btn-div').classList.toggle('active', mode === 'div');
-      document.getElementById('btn-mix').classList.toggle('active', mode === 'mix');
-    }
-
     function getModeText(mode) {
-      if (mode === 'multi') return '곱셈';
-      if (mode === 'div') return '나눗셈';
-      return '혼합';
-    }
-
-    // 새로고침 시 세션 정보 유지
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedKey = sessionStorage.getItem('studentKey');
-      const savedName = sessionStorage.getItem('studentName');
-      const savedMode = sessionStorage.getItem('selectedMode');
-      const savedSolved = sessionStorage.getItem('solvedCount');
-      const savedWrong = sessionStorage.getItem('wrongCount');
-      const savedStartTime = sessionStorage.getItem('startTime');
-
-      if (savedKey && savedName) {
-        studentKey = savedKey;
-        studentName = savedName;
-        selectedMode = savedMode || 'multi';
-        solvedCount = parseInt(savedSolved || '0', 10);
-        wrongCount = parseInt(savedWrong || '0', 10);
-        startTime = parseInt(savedStartTime || Date.now().toString(), 10);
-
-        document.getElementById('display-student-info').textContent = `👤 ${studentName} (${getModeText(selectedMode)})`;
-        document.getElementById('name-screen').classList.add('hidden');
-        document.getElementById('quiz-screen').classList.remove('hidden');
-
-        updateLocalDisplay();
-        setInterval(updateLocalDisplay, 1000);
-        generateProblem();
-      }
-    });
-
-    function saveSessionData() {
-      sessionStorage.setItem('studentKey', studentKey);
-      sessionStorage.setItem('studentName', studentName);
-      sessionStorage.setItem('selectedMode', selectedMode);
-      sessionStorage.setItem('solvedCount', solvedCount);
-      sessionStorage.setItem('wrongCount', wrongCount);
-      sessionStorage.setItem('startTime', startTime);
+      if (mode === 'multi') return '✖️ 곱셈 단계';
+      if (mode === 'div') return '➗ 나눗셈 단계';
+      return '🔀 마스터 혼합 단계';
     }
 
     function startQuiz() {
@@ -361,10 +269,8 @@
         return;
       }
       studentName = nameInput;
-      studentKey = studentName.replace(/[.#$/\[\]]/g, "_") + "_" + selectedMode + "_" + Date.now();
+      studentKey = studentName.replace(/[.#$/\[\]]/g, "_") + "_" + Date.now();
       startTime = Date.now();
-
-      saveSessionData();
 
       document.getElementById('display-student-info').textContent = `👤 ${studentName} (${getModeText(selectedMode)})`;
       document.getElementById('name-screen').classList.add('hidden');
@@ -378,12 +284,12 @@
     function sendDataToFirebase() {
       if (!studentKey) return;
       const elapsedSeconds = (Date.now() - startTime) / 1000;
-      const avgTime = solvedCount > 0 ? (elapsedSeconds / solvedCount).toFixed(1) : "0.0";
+      const avgTime = totalSolvedCount > 0 ? (elapsedSeconds / totalSolvedCount).toFixed(1) : "0.0";
 
       database.ref('students/' + studentKey).set({
         name: studentName,
-        mode: selectedMode, // 'multi', 'div', 또는 'mix'
-        solvedCount: solvedCount,
+        mode: selectedMode,
+        solvedCount: totalSolvedCount,
         wrongCount: wrongCount,
         avgTime: parseFloat(avgTime),
         lastActive: Date.now()
@@ -391,11 +297,11 @@
     }
 
     function updateLocalDisplay() {
-      document.getElementById('solved-count').textContent = `${solvedCount}개`;
+      document.getElementById('solved-count').textContent = `${totalSolvedCount}개`;
       document.getElementById('wrong-count').textContent = `${wrongCount}회`;
 
       const elapsedSeconds = (Date.now() - startTime) / 1000;
-      const avg = solvedCount > 0 ? (elapsedSeconds / solvedCount).toFixed(1) : "0.0";
+      const avg = totalSolvedCount > 0 ? (elapsedSeconds / totalSolvedCount).toFixed(1) : "0.0";
       document.getElementById('avg-time').textContent = `${avg}초`;
     }
 
@@ -407,7 +313,6 @@
       }, 2000);
     }
 
-    // [문제 생성 로직] 선택된 모드에 따라 결정 (혼합일 경우 50% 확률로 곱셈/나눗셈 출제)
     function generateProblem() {
       inputValues = { ans: '', q: '', r: '' };
 
@@ -417,13 +322,11 @@
       }
 
       if (problemType === 'multi') {
-        // 곱셈 (구구단: 2~9단)
         const num1 = Math.floor(Math.random() * 8) + 2;
         const num2 = Math.floor(Math.random() * 9) + 1;
         currentProblem = { type: 'multi', ans: num1 * num2, text: `${num1} × ${num2}` };
         activeBoxId = 'box-ans';
       } else {
-        // 나눗셈 ((두 자리 수 또는 세 자리 수) ÷ 한 자리 수)
         const divisor = Math.floor(Math.random() * 8) + 2;
         const isThreeDigits = Math.random() < 0.5;
         const dividend = isThreeDigits 
@@ -523,15 +426,27 @@
       }
 
       if (isCorrect) {
-        solvedCount++;
-        saveSessionData();
+        totalSolvedCount++;
+        stageSolvedCount++;
+
+        // 승급 조건 체크
+        if (selectedMode === 'multi' && stageSolvedCount >= PASS_THRESHOLD) {
+          selectedMode = 'div';
+          stageSolvedCount = 0;
+          alert(`🎉 축하합니다! 곱셈 ${PASS_THRESHOLD}문제를 모두 통과하여 '나눗셈' 단계로 진입합니다!`);
+        } else if (selectedMode === 'div' && stageSolvedCount >= PASS_THRESHOLD) {
+          selectedMode = 'mix';
+          stageSolvedCount = 0;
+          alert(`🎉 대단합니다! 나눗셈 ${PASS_THRESHOLD}문제를 통과하여 '마스터 혼합' 단계에 진입합니다!`);
+        }
+
+        document.getElementById('display-student-info').textContent = `👤 ${studentName} (${getModeText(selectedMode)})`;
         updateLocalDisplay();
         sendDataToFirebase();
         generateProblem();
       } else {
         isChecking = true;
         wrongCount++;
-        saveSessionData();
         updateLocalDisplay();
         sendDataToFirebase();
 
