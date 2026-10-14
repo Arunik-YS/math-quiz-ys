@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>연산 실력 쑥쑥! 곱셈과 나눗셈</title>
   
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -16,31 +16,70 @@
       -webkit-user-select: none;
       touch-action: manipulation;
     }
-    body {
+
+    /* 스마트패드 바운스 및 여백 스크롤 완전히 방지 */
+    html, body {
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      margin: 0;
+      padding: 12px;
+      overflow: hidden;
       background-color: #f0f4f8;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
-      margin: 0;
-      padding: 16px;
+      position: fixed; /* iOS 젤리 스크롤 방지 */
+      top: 0;
+      left: 0;
     }
-    
-    /* 초기 카드 레이아웃 */
+
+    /* 우측 최상단 고정 버튼 (전체화면 / 나가기) */
+    .top-right-btn {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 9999;
+      background: #ffffff;
+      border: 2px solid #cbd5e1;
+      border-radius: 20px;
+      padding: 8px 14px;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #334155;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .top-right-btn.active {
+      background: #ef4444;
+      color: white;
+      border-color: #ef4444;
+    }
+
+    /* 카드 레이아웃 */
     .card {
       background: white;
-      padding: 24px 20px;
+      padding: 20px;
       border-radius: 24px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.08);
       width: 100%;
       max-width: 420px;
+      max-height: 96vh;
       text-align: center;
       transition: max-width 0.3s ease;
+      overflow-y: auto;
     }
     
-    /* 퀴즈 진행 시 2컬럼 확장 카드 */
     .card.wide-layout {
-      max-width: 900px;
+      max-width: 960px;
+      height: 92vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
     h1 {
@@ -74,23 +113,27 @@
     /* 반분할 그리드 레이아웃 */
     .split-container {
       display: flex;
-      gap: 20px;
+      gap: 16px;
       text-align: left;
+      height: 100%;
     }
     .quiz-left-panel {
       flex: 1;
       min-width: 280px;
       text-align: center;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
     .quiz-right-panel {
-      flex: 1;
+      flex: 1.1;
       min-width: 280px;
       display: flex;
       flex-direction: column;
       background: #f8fafc;
       border: 2px dashed #cbd5e1;
       border-radius: 18px;
-      padding: 14px;
+      padding: 12px;
     }
 
     /* 메모장 헤더 및 툴바 */
@@ -98,15 +141,12 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
     .memo-title {
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 800;
       color: #475569;
-      display: flex;
-      align-items: center;
-      gap: 6px;
     }
     .memo-tools {
       display: flex;
@@ -116,8 +156,8 @@
       background: white;
       border: 1px solid #cbd5e1;
       border-radius: 8px;
-      padding: 6px 10px;
-      font-size: 0.8rem;
+      padding: 5px 8px;
+      font-size: 0.78rem;
       font-weight: 700;
       color: #475569;
       cursor: pointer;
@@ -131,7 +171,6 @@
     /* 드로잉 캔버스 */
     .canvas-wrapper {
       flex: 1;
-      min-height: 320px;
       position: relative;
       background: white;
       border-radius: 12px;
@@ -143,16 +182,16 @@
       height: 100%;
       display: block;
       cursor: crosshair;
-      touch-action: none; /* 터치 스크롤 방지 */
+      touch-action: none;
     }
 
     .stats-bar {
       display: flex;
       justify-content: space-around;
       background: #f1f5f9;
-      padding: 12px 8px;
-      border-radius: 16px;
-      margin-bottom: 16px;
+      padding: 10px 6px;
+      border-radius: 14px;
+      margin-bottom: 10px;
       border: 1px solid #e2e8f0;
     }
     .stat-item {
@@ -161,13 +200,13 @@
       align-items: center;
     }
     .stat-label {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: #64748b;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
       font-weight: 600;
     }
     .stat-value {
-      font-size: 1.1rem;
+      font-size: 1rem;
       font-weight: 800;
       color: #1e293b;
     }
@@ -175,26 +214,26 @@
     .stat-value.correct { color: #3b82f6; }
 
     .notice-msg {
-      min-height: 20px;
+      min-height: 18px;
       font-size: 0.85rem;
       font-weight: bold;
       color: #ef4444;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
     }
 
     .problem-box {
-      font-size: 2.2rem;
+      font-size: 2rem;
       font-weight: 800;
       color: #0f172a;
-      margin: 8px 0 20px 0;
+      margin: 4px 0 12px 0;
     }
     .inputs-container {
       display: flex;
       justify-content: center;
       align-items: center;
       gap: 12px;
-      margin-bottom: 20px;
-      min-height: 70px;
+      margin-bottom: 12px;
+      min-height: 60px;
     }
     .input-wrapper {
       display: flex;
@@ -202,20 +241,20 @@
       align-items: center;
     }
     .input-label {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 700;
       color: #64748b;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .square-box {
-      width: 90px;
-      height: 56px;
+      width: 80px;
+      height: 50px;
       border: 3px solid #cbd5e1;
-      border-radius: 14px;
+      border-radius: 12px;
       display: flex;
       justify-content: center;
       align-items: center;
-      font-size: 1.6rem;
+      font-size: 1.5rem;
       font-weight: 800;
       color: #1e293b;
       background-color: #f8fafc;
@@ -224,7 +263,7 @@
     .square-box.active {
       border-color: #3b82f6;
       background-color: #eff6ff;
-      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
     }
     @keyframes blinkRed {
       0%, 100% { background-color: #f8fafc; border-color: #cbd5e1; color: #1e293b; }
@@ -237,41 +276,32 @@
     .keypad {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
+      gap: 8px;
     }
     .key-btn {
       background: #ffffff;
       border: 1.5px solid #e2e8f0;
-      border-radius: 14px;
-      padding: 16px 0;
-      font-size: 1.4rem;
+      border-radius: 12px;
+      padding: 12px 0;
+      font-size: 1.3rem;
       font-weight: 700;
       color: #334155;
       cursor: pointer;
     }
     .key-btn:active { background-color: #e2e8f0; }
-    .key-btn.action { background-color: #f1f5f9; color: #475569; font-size: 1.1rem; }
-    .key-btn.submit { background-color: #3b82f6; color: white; border: none; font-size: 1.2rem; }
+    .key-btn.action { background-color: #f1f5f9; color: #475569; font-size: 1rem; }
+    .key-btn.submit { background-color: #3b82f6; color: white; border: none; font-size: 1.1rem; }
 
     .hidden { display: none; }
-
-    /* 화면 폭이 좁은 모바일 대응 */
-    @media (max-width: 768px) {
-      .split-container {
-        flex-direction: column;
-      }
-      .card.wide-layout {
-        max-width: 440px;
-      }
-      .canvas-wrapper {
-        min-height: 220px;
-      }
-    }
   </style>
 </head>
 <body>
 
-  <!-- 메인 카드가 퀴즈 시작 시 넓어짐 -->
+  <!-- 우측 최상단 전체화면 해제/전환 버튼 -->
+  <button id="fullscreen-btn" class="top-right-btn" onclick="toggleFullscreen()">
+    <span id="fs-icon">📺</span> <span id="fs-text">전체화면</span>
+  </button>
+
   <div class="card" id="main-card">
     
     <!-- 1. 이름 입력 화면 -->
@@ -285,13 +315,13 @@
       </div>
     </div>
 
-    <!-- 2. 퀴즈 화면 (반분할 레이아웃) -->
-    <div class="hidden" id="quiz-screen">
+    <!-- 2. 퀴즈 화면 -->
+    <div class="hidden" id="quiz-screen" style="height: 100%;">
       <div class="split-container">
         
-        <!-- 왼쪽: 퀴즈 풀이 영역 -->
+        <!-- 왼쪽: 퀴즈 영역 -->
         <div class="quiz-left-panel">
-          <div style="font-size: 0.9rem; color: #64748b; font-weight: bold; margin-bottom: 10px;" id="display-student-info"></div>
+          <div style="font-size: 0.85rem; color: #64748b; font-weight: bold; margin-bottom: 6px;" id="display-student-info"></div>
 
           <div class="stats-bar">
             <div class="stat-item">
@@ -335,7 +365,7 @@
             <div class="memo-tools">
               <button type="button" class="tool-btn active" id="pen-btn" onclick="setTool('pen')">✏️ 펜</button>
               <button type="button" class="tool-btn" id="eraser-btn" onclick="setTool('eraser')">🧹 지우개</button>
-              <button type="button" class="tool-btn" onclick="clearCanvas()">🗑️ 전체 삭제</button>
+              <button type="button" class="tool-btn" onclick="clearCanvas()">🗑️ 삭제</button>
             </div>
           </div>
           <div class="canvas-wrapper" id="canvas-container">
@@ -378,10 +408,48 @@
     let activeBoxId = 'box-ans';
     let inputValues = { ans: '', q: '', r: '' };
 
+    /* ---------------- 전체화면 처리 로직 ---------------- */
+    function toggleFullscreen() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen();
+        } else if (docEl.webkitRequestFullscreen) {
+          docEl.webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+    }
+
+    document.addEventListener('fullscreenchange', updateFullscreenBtn);
+    document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
+
+    function updateFullscreenBtn() {
+      const btn = document.getElementById('fullscreen-btn');
+      const text = document.getElementById('fs-text');
+      const icon = document.getElementById('fs-icon');
+
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        text.textContent = '화면 나가기';
+        icon.textContent = '❌';
+        btn.classList.add('active');
+      } else {
+        text.textContent = '전체화면';
+        icon.textContent = '📺';
+        btn.classList.remove('active');
+      }
+      setTimeout(resizeCanvas, 100);
+    }
+
     /* ---------------- 메모장 캔버스 로직 ---------------- */
     let canvas, ctx;
     let isDrawing = false;
-    let currentTool = 'pen'; // 'pen' 또는 'eraser'
+    let currentTool = 'pen';
 
     function initCanvas() {
       canvas = document.getElementById('memo-canvas');
@@ -390,13 +458,11 @@
       resizeCanvas();
       window.addEventListener('resize', resizeCanvas);
 
-      // 마우스 이벤트
       canvas.addEventListener('mousedown', startDrawing);
       canvas.addEventListener('mousemove', draw);
       canvas.addEventListener('mouseup', stopDrawing);
       canvas.addEventListener('mouseleave', stopDrawing);
 
-      // 터치 이벤트 (스마트폰/태블릿 대응)
       canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
       canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
       canvas.addEventListener('touchend', stopDrawing);
@@ -407,7 +473,6 @@
       const container = document.getElementById('canvas-container');
       const rect = container.getBoundingClientRect();
 
-      // 해상도에 맞게 캔버스 크기 조절 (기존 캔버스 내용 보존)
       const tempImage = ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
       canvas.width = rect.width;
       canvas.height = rect.height;
@@ -426,7 +491,7 @@
         ctx.lineWidth = 3;
       } else {
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 20;
+        ctx.lineWidth = 22;
       }
     }
 
@@ -503,15 +568,16 @@
       studentKey = studentName.replace(/[.#$/\[\]]/g, "_") + "_" + Date.now();
       startTime = Date.now();
 
+      // 시작 시 전체화면 자동 요청
+      toggleFullscreen();
+
       document.getElementById('display-student-info').textContent = `👤 ${studentName} (${getModeText(selectedMode)})`;
       document.getElementById('name-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.remove('hidden');
 
-      // 메인 카드 폭 확장
       document.getElementById('main-card').classList.add('wide-layout');
 
-      // 캔버스 초기화 (화면 표출 후 레이아웃 잡기)
-      setTimeout(initCanvas, 50);
+      setTimeout(initCanvas, 100);
 
       sendDataToFirebase();
       setInterval(updateLocalDisplay, 1000);
@@ -666,7 +732,6 @@
         totalSolvedCount++;
         stageSolvedCount++;
 
-        // 승급 조건 체크
         if (selectedMode === 'multi' && stageSolvedCount >= MULTI_PASS_THRESHOLD) {
           selectedMode = 'div';
           stageSolvedCount = 0;
