@@ -25,6 +25,8 @@
       margin: 0;
       padding: 16px;
     }
+    
+    /* 초기 카드 레이아웃 */
     .card {
       background: white;
       padding: 24px 20px;
@@ -33,7 +35,14 @@
       width: 100%;
       max-width: 420px;
       text-align: center;
+      transition: max-width 0.3s ease;
     }
+    
+    /* 퀴즈 진행 시 2컬럼 확장 카드 */
+    .card.wide-layout {
+      max-width: 900px;
+    }
+
     h1 {
       font-size: 1.3rem;
       color: #334155;
@@ -60,6 +69,81 @@
       border: none;
       border-radius: 12px;
       cursor: pointer;
+    }
+
+    /* 반분할 그리드 레이아웃 */
+    .split-container {
+      display: flex;
+      gap: 20px;
+      text-align: left;
+    }
+    .quiz-left-panel {
+      flex: 1;
+      min-width: 280px;
+      text-align: center;
+    }
+    .quiz-right-panel {
+      flex: 1;
+      min-width: 280px;
+      display: flex;
+      flex-direction: column;
+      background: #f8fafc;
+      border: 2px dashed #cbd5e1;
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    /* 메모장 헤더 및 툴바 */
+    .memo-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .memo-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .memo-tools {
+      display: flex;
+      gap: 6px;
+    }
+    .tool-btn {
+      background: white;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+    }
+    .tool-btn.active {
+      background-color: #3b82f6;
+      color: white;
+      border-color: #3b82f6;
+    }
+
+    /* 드로잉 캔버스 */
+    .canvas-wrapper {
+      flex: 1;
+      min-height: 320px;
+      position: relative;
+      background: white;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+    }
+    #memo-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+      touch-action: none; /* 터치 스크롤 방지 */
     }
 
     .stats-bar {
@@ -170,66 +254,103 @@
     .key-btn.submit { background-color: #3b82f6; color: white; border: none; font-size: 1.2rem; }
 
     .hidden { display: none; }
+
+    /* 화면 폭이 좁은 모바일 대응 */
+    @media (max-width: 768px) {
+      .split-container {
+        flex-direction: column;
+      }
+      .card.wide-layout {
+        max-width: 440px;
+      }
+      .canvas-wrapper {
+        min-height: 220px;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <!-- 이름 입력 화면 -->
-  <div class="card" id="name-screen">
-    <h1>연산 실력 쑥쑥! 퀴즈</h1>
-    <p style="color: #64748b; margin-bottom: 16px; font-size: 0.95rem;">이름을 적고 시작하세요.<br><strong>[곱셈 30개 ➔ 나눗셈 10개 ➔ 혼합]</strong> 순서</p>
+  <!-- 메인 카드가 퀴즈 시작 시 넓어짐 -->
+  <div class="card" id="main-card">
     
-    <div class="name-input-group">
-      <input type="text" id="student-name-input" placeholder="예: 김반곡" maxlength="15" autocomplete="off">
-      <button class="start-btn" onclick="startQuiz()">도전 시작하기</button>
-    </div>
-  </div>
-
-  <!-- 퀴즈 화면 -->
-  <div class="card hidden" id="quiz-screen">
-    <div style="font-size: 0.9rem; color: #64748b; font-weight: bold; margin-bottom: 10px;" id="display-student-info"></div>
-
-    <div class="stats-bar">
-      <div class="stat-item">
-        <span class="stat-label">맞힌 문제</span>
-        <span class="stat-value correct" id="solved-count">0개</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">틀린 횟수</span>
-        <span class="stat-value wrong" id="wrong-count">0회</span>
-      </div>
-      <div class="stat-item">
-        <span class="stat-label">평균 소요 시간</span>
-        <span class="stat-value" id="avg-time">0.0초</span>
+    <!-- 1. 이름 입력 화면 -->
+    <div id="name-screen">
+      <h1>연산 실력 쑥쑥! 퀴즈</h1>
+      <p style="color: #64748b; margin-bottom: 16px; font-size: 0.95rem;">이름을 적고 시작하세요.<br><strong>[곱셈 30개 ➔ 나눗셈 10개 ➔ 혼합]</strong> 순서</p>
+      
+      <div class="name-input-group">
+        <input type="text" id="student-name-input" placeholder="예: 김반곡" maxlength="15" autocomplete="off">
+        <button class="start-btn" onclick="startQuiz()">도전 시작하기</button>
       </div>
     </div>
 
-    <div class="notice-msg" id="notice-msg"></div>
-    <div class="problem-box" id="problem-text"></div>
-    <div class="inputs-container" id="inputs-container"></div>
+    <!-- 2. 퀴즈 화면 (반분할 레이아웃) -->
+    <div class="hidden" id="quiz-screen">
+      <div class="split-container">
+        
+        <!-- 왼쪽: 퀴즈 풀이 영역 -->
+        <div class="quiz-left-panel">
+          <div style="font-size: 0.9rem; color: #64748b; font-weight: bold; margin-bottom: 10px;" id="display-student-info"></div>
 
-    <div class="keypad">
-      <button class="key-btn" onclick="pressKey('1')">1</button>
-      <button class="key-btn" onclick="pressKey('2')">2</button>
-      <button class="key-btn" onclick="pressKey('3')">3</button>
-      <button class="key-btn" onclick="pressKey('4')">4</button>
-      <button class="key-btn" onclick="pressKey('5')">5</button>
-      <button class="key-btn" onclick="pressKey('6')">6</button>
-      <button class="key-btn" onclick="pressKey('7')">7</button>
-      <button class="key-btn" onclick="pressKey('8')">8</button>
-      <button class="key-btn" onclick="pressKey('9')">9</button>
-      <button class="key-btn action" onclick="pressKey('delete')">⌫</button>
-      <button class="key-btn" onclick="pressKey('0')">0</button>
-      <button class="key-btn submit" onclick="checkAnswer()">확인</button>
+          <div class="stats-bar">
+            <div class="stat-item">
+              <span class="stat-label">맞힌 문제</span>
+              <span class="stat-value correct" id="solved-count">0개</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">틀린 횟수</span>
+              <span class="stat-value wrong" id="wrong-count">0회</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">평균 소요 시간</span>
+              <span class="stat-value" id="avg-time">0.0초</span>
+            </div>
+          </div>
+
+          <div class="notice-msg" id="notice-msg"></div>
+          <div class="problem-box" id="problem-text"></div>
+          <div class="inputs-container" id="inputs-container"></div>
+
+          <div class="keypad">
+            <button class="key-btn" onclick="pressKey('1')">1</button>
+            <button class="key-btn" onclick="pressKey('2')">2</button>
+            <button class="key-btn" onclick="pressKey('3')">3</button>
+            <button class="key-btn" onclick="pressKey('4')">4</button>
+            <button class="key-btn" onclick="pressKey('5')">5</button>
+            <button class="key-btn" onclick="pressKey('6')">6</button>
+            <button class="key-btn" onclick="pressKey('7')">7</button>
+            <button class="key-btn" onclick="pressKey('8')">8</button>
+            <button class="key-btn" onclick="pressKey('9')">9</button>
+            <button class="key-btn action" onclick="pressKey('delete')">⌫</button>
+            <button class="key-btn" onclick="pressKey('0')">0</button>
+            <button class="key-btn submit" onclick="checkAnswer()">확인</button>
+          </div>
+        </div>
+
+        <!-- 오른쪽: 메모장 영역 -->
+        <div class="quiz-right-panel">
+          <div class="memo-header">
+            <div class="memo-title">📝 풀이 연습장</div>
+            <div class="memo-tools">
+              <button type="button" class="tool-btn active" id="pen-btn" onclick="setTool('pen')">✏️ 펜</button>
+              <button type="button" class="tool-btn" id="eraser-btn" onclick="setTool('eraser')">🧹 지우개</button>
+              <button type="button" class="tool-btn" onclick="clearCanvas()">🗑️ 전체 삭제</button>
+            </div>
+          </div>
+          <div class="canvas-wrapper" id="canvas-container">
+            <canvas id="memo-canvas"></canvas>
+          </div>
+        </div>
+
+      </div>
     </div>
+
   </div>
 
   <script>
-    // ----------------------------------------------------
-    // [설정] 단계 통과 기준 문제 수
-    // ----------------------------------------------------
-    const MULTI_PASS_THRESHOLD = 30; // 곱셈 통과 기준
-    const DIV_PASS_THRESHOLD = 10;   // 나눗셈 통과 기준
+    const MULTI_PASS_THRESHOLD = 30;
+    const DIV_PASS_THRESHOLD = 10;
 
     const firebaseConfig = {
       apiKey: "AIzaSyAkeZtBoYd-3zNcj7KG-98twjXTcAnkOVY",
@@ -245,8 +366,8 @@
     const database = firebase.database();
 
     let studentName = '';
-    let selectedMode = 'multi'; // 곱셈부터 시작
-    let stageSolvedCount = 0;   // 현재 단계에서 맞힌 문제 수
+    let selectedMode = 'multi';
+    let stageSolvedCount = 0;
     let studentKey = '';
     let totalSolvedCount = 0;
     let wrongCount = 0;
@@ -257,6 +378,115 @@
     let activeBoxId = 'box-ans';
     let inputValues = { ans: '', q: '', r: '' };
 
+    /* ---------------- 메모장 캔버스 로직 ---------------- */
+    let canvas, ctx;
+    let isDrawing = false;
+    let currentTool = 'pen'; // 'pen' 또는 'eraser'
+
+    function initCanvas() {
+      canvas = document.getElementById('memo-canvas');
+      ctx = canvas.getContext('2d');
+
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+
+      // 마우스 이벤트
+      canvas.addEventListener('mousedown', startDrawing);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDrawing);
+      canvas.addEventListener('mouseleave', stopDrawing);
+
+      // 터치 이벤트 (스마트폰/태블릿 대응)
+      canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+      canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+      canvas.addEventListener('touchend', stopDrawing);
+    }
+
+    function resizeCanvas() {
+      if (!canvas) return;
+      const container = document.getElementById('canvas-container');
+      const rect = container.getBoundingClientRect();
+
+      // 해상도에 맞게 캔버스 크기 조절 (기존 캔버스 내용 보존)
+      const tempImage = ctx ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+      if (tempImage) ctx.putImageData(tempImage, 0, 0);
+
+      updateCanvasStyle();
+    }
+
+    function updateCanvasStyle() {
+      if (!ctx) return;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (currentTool === 'pen') {
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 3;
+      } else {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 20;
+      }
+    }
+
+    function setTool(tool) {
+      currentTool = tool;
+      document.getElementById('pen-btn').classList.toggle('active', tool === 'pen');
+      document.getElementById('eraser-btn').classList.toggle('active', tool === 'eraser');
+      updateCanvasStyle();
+    }
+
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      let clientX = e.clientX;
+      let clientY = e.clientY;
+
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      }
+
+      return {
+        x: clientX - rect.left,
+        y: clientY - rect.top
+      };
+    }
+
+    function startDrawing(e) {
+      isDrawing = true;
+      const pos = getPos(e);
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    }
+
+    function draw(e) {
+      if (!isDrawing) return;
+      const pos = getPos(e);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+    }
+
+    function stopDrawing() {
+      isDrawing = false;
+    }
+
+    function handleTouchStart(e) {
+      e.preventDefault();
+      startDrawing(e);
+    }
+
+    function handleTouchMove(e) {
+      e.preventDefault();
+      draw(e);
+    }
+
+    function clearCanvas() {
+      if (!ctx || !canvas) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    /* ---------------- 퀴즈 메인 로직 ---------------- */
     function getModeText(mode) {
       if (mode === 'multi') return '✖️ 곱셈 단계';
       if (mode === 'div') return '➗ 나눗셈 단계';
@@ -276,6 +506,12 @@
       document.getElementById('display-student-info').textContent = `👤 ${studentName} (${getModeText(selectedMode)})`;
       document.getElementById('name-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.remove('hidden');
+
+      // 메인 카드 폭 확장
+      document.getElementById('main-card').classList.add('wide-layout');
+
+      // 캔버스 초기화 (화면 표출 후 레이아웃 잡기)
+      setTimeout(initCanvas, 50);
 
       sendDataToFirebase();
       setInterval(updateLocalDisplay, 1000);
