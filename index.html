@@ -17,7 +17,6 @@
       touch-action: manipulation;
     }
 
-    /* 스마트패드 바운스 및 여백 스크롤 완전히 방지 */
     html, body {
       width: 100vw;
       height: 100vh;
@@ -29,12 +28,12 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      position: fixed; /* iOS 젤리 스크롤 방지 */
+      position: fixed;
       top: 0;
       left: 0;
     }
 
-    /* 우측 최상단 고정 버튼 (전체화면 / 나가기) */
+    /* 우측 최상단 전체화면 버튼 */
     .top-right-btn {
       position: fixed;
       top: 14px;
@@ -110,7 +109,7 @@
       cursor: pointer;
     }
 
-    /* 반분할 그리드 레이아웃 */
+    /* 반분할 레이아웃 */
     .split-container {
       display: flex;
       gap: 16px;
@@ -136,7 +135,6 @@
       padding: 12px;
     }
 
-    /* 메모장 헤더 및 툴바 */
     .memo-header {
       display: flex;
       justify-content: space-between;
@@ -168,7 +166,6 @@
       border-color: #3b82f6;
     }
 
-    /* 드로잉 캔버스 */
     .canvas-wrapper {
       flex: 1;
       position: relative;
@@ -292,15 +289,55 @@
     .key-btn.action { background-color: #f1f5f9; color: #475569; font-size: 1rem; }
     .key-btn.submit { background-color: #3b82f6; color: white; border: none; font-size: 1.1rem; }
 
-    .hidden { display: none; }
+    /* 커스텀 승급 모달 팝업 스타일 */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    }
+    .modal-card {
+      background: white;
+      padding: 28px 24px;
+      border-radius: 24px;
+      width: 90%;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+      animation: modalUp 0.3s ease-out;
+    }
+    @keyframes modalUp {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-icon { font-size: 3rem; margin-bottom: 8px; }
+    .modal-card h2 { margin: 0 0 8px 0; font-size: 1.3rem; color: #0f172a; }
+    .modal-card p { font-size: 0.95rem; color: #64748b; margin-bottom: 20px; line-height: 1.4; }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
 
-  <!-- 우측 최상단 전체화면 해제/전환 버튼 -->
+  <!-- 전체화면 버튼 -->
   <button id="fullscreen-btn" class="top-right-btn" onclick="toggleFullscreen()">
     <span id="fs-icon">📺</span> <span id="fs-text">전체화면</span>
   </button>
+
+  <!-- 커스텀 단계 통과 팝업 -->
+  <div id="stage-modal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-icon" id="modal-icon">🎉</div>
+      <h2 id="modal-title">단계 통과!</h2>
+      <p id="modal-msg">다음 단계로 이동합니다.</p>
+      <button class="start-btn" onclick="closeStageModal()">다음 문제 풀기</button>
+    </div>
+  </div>
 
   <div class="card" id="main-card">
     
@@ -408,21 +445,122 @@
     let activeBoxId = 'box-ans';
     let inputValues = { ans: '', q: '', r: '' };
 
-    /* ---------------- 전체화면 처리 로직 ---------------- */
+    let studentRefListener = null;
+    let hasCreatedRecord = false;
+    
+    // 쓰기 지연(Throttling)을 위한 상태 변수
+    let pendingUpdate = false;
+
+    /* ---------------- 2초 주기 전송(Throttling) 로직 ---------------- */
+    setInterval(() => {
+      if (pendingUpdate && studentKey) {
+        const elapsedSeconds = (Date.now() - startTime) / 1000;
+        const avgTime = totalSolvedCount > 0 ? (elapsedSeconds / totalSolvedCount).toFixed(1) : "0.0";
+
+        // 전체 덮어쓰기(set) 대신 변경된 부분만 업데이트(update)
+        database.ref('students/' + studentKey).update({
+          mode: selectedMode,
+          solvedCount: totalSolvedCount,
+          wrongCount: wrongCount,
+          avgTime: parseFloat(avgTime),
+          lastActive: Date.now()
+        });
+        
+        pendingUpdate = false;
+      }
+    }, 2000);
+
+    /* ---------------- localStorage 기반 세션 복구 ---------------- */
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedKey = localStorage.getItem('studentKey');
+      const savedName = localStorage.getItem('studentName');
+      const savedMode = localStorage.getItem('selectedMode');
+      const savedTotal = localStorage.getItem('totalSolvedCount');
+      const savedStage = localStorage.getItem('stageSolvedCount');
+      const savedWrong = localStorage.getItem('wrongCount');
+      const savedStartTime = localStorage.getItem('startTime');
+
+      if (savedKey && savedName) {
+        studentKey = savedKey;
+        studentName = savedName;
+        selectedMode = savedMode || 'multi';
+        totalSolvedCount = parseInt(savedTotal || '0', 10);
+        stageSolvedCount = parseInt(savedStage || '0', 10);
+        wrongCount = parseInt(savedWrong || '0', 10);
+        startTime = parseInt(savedStartTime || Date.now().toString(), 10);
+
+        hasCreatedRecord = true;
+
+        document.getElementById('display-student-info').textContent = `👤 ${studentName} (${getModeText(selectedMode)})`;
+        document.getElementById('name-screen').classList.add('hidden');
+        document.getElementById('quiz-screen').classList.remove('hidden');
+        document.getElementById('main-card').classList.add('wide-layout');
+
+        setTimeout(initCanvas, 100);
+        setInterval(updateLocalDisplay, 1000);
+        listenToTeacherDelete(); 
+        generateProblem();
+      }
+    });
+
+    function saveSessionData() {
+      localStorage.setItem('studentKey', studentKey);
+      localStorage.setItem('studentName', studentName);
+      localStorage.setItem('selectedMode', selectedMode);
+      localStorage.setItem('totalSolvedCount', totalSolvedCount);
+      localStorage.setItem('stageSolvedCount', stageSolvedCount);
+      localStorage.setItem('wrongCount', wrongCount);
+      localStorage.setItem('startTime', startTime);
+    }
+
+    /* ---------------- 교사 삭제 감지 연동 ---------------- */
+    function listenToTeacherDelete() {
+      if (!studentKey) return;
+      if (studentRefListener) {
+        database.ref('students/' + studentKey).off('value', studentRefListener);
+      }
+
+      studentRefListener = database.ref('students/' + studentKey).on('value', (snapshot) => {
+        if (hasCreatedRecord && !snapshot.exists()) {
+          handleResetByTeacher();
+        } else if (snapshot.exists()) {
+          hasCreatedRecord = true;
+        }
+      });
+    }
+
+    function handleResetByTeacher() {
+      if (studentKey && studentRefListener) {
+        database.ref('students/' + studentKey).off('value', studentRefListener);
+        studentRefListener = null;
+      }
+
+      localStorage.clear(); 
+      hasCreatedRecord = false;
+      studentKey = '';
+      studentName = '';
+      selectedMode = 'multi';
+      totalSolvedCount = 0;
+      stageSolvedCount = 0;
+      wrongCount = 0;
+
+      alert('교사 페이지에서 기록이 삭제되어 새로 시작합니다.');
+
+      document.getElementById('main-card').classList.remove('wide-layout');
+      document.getElementById('quiz-screen').classList.add('hidden');
+      document.getElementById('name-screen').classList.remove('hidden');
+      document.getElementById('student-name-input').value = '';
+    }
+
+    /* ---------------- 전체화면 처리 ---------------- */
     function toggleFullscreen() {
       if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         const docEl = document.documentElement;
-        if (docEl.requestFullscreen) {
-          docEl.requestFullscreen();
-        } else if (docEl.webkitRequestFullscreen) {
-          docEl.webkitRequestFullscreen();
-        }
+        if (docEl.requestFullscreen) docEl.requestFullscreen();
+        else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
       } else {
-        if (document.exitFullscreen) {
-          document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          document.webkitExitFullscreen();
-        }
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
       }
     }
 
@@ -551,6 +689,18 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
+    /* ---------------- 커스텀 모달 팝업 ---------------- */
+    function showStageModal(title, msg) {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-msg').textContent = msg;
+      document.getElementById('stage-modal').classList.remove('hidden');
+    }
+
+    function closeStageModal() {
+      document.getElementById('stage-modal').classList.add('hidden');
+      generateProblem();
+    }
+
     /* ---------------- 퀴즈 메인 로직 ---------------- */
     function getModeText(mode) {
       if (mode === 'multi') return '✖️ 곱셈 단계';
@@ -559,44 +709,53 @@
     }
 
     function startQuiz() {
-      const nameInput = document.getElementById('student-name-input').value.trim();
-      if (!nameInput) {
+      const nameInput = document.getElementById('student-name-input');
+      const inputVal = nameInput.value.trim();
+      
+      if (!inputVal) {
         alert('이름을 입력해 주세요!');
         return;
       }
-      studentName = nameInput;
-      studentKey = studentName.replace(/[.#$/\[\]]/g, "_") + "_" + Date.now();
+
+      nameInput.blur();
+      studentName = inputVal;
+      
+      // Firebase의 고유 push 키를 사용하여 충돌 원천 차단
+      studentKey = database.ref('students').push().key; 
       startTime = Date.now();
 
-      // 시작 시 전체화면 자동 요청
+      saveSessionData();
       toggleFullscreen();
 
       document.getElementById('display-student-info').textContent = `👤 ${studentName} (${getModeText(selectedMode)})`;
       document.getElementById('name-screen').classList.add('hidden');
       document.getElementById('quiz-screen').classList.remove('hidden');
-
       document.getElementById('main-card').classList.add('wide-layout');
 
       setTimeout(initCanvas, 100);
 
-      sendDataToFirebase();
-      setInterval(updateLocalDisplay, 1000);
-      generateProblem();
-    }
-
-    function sendDataToFirebase() {
-      if (!studentKey) return;
-      const elapsedSeconds = (Date.now() - startTime) / 1000;
-      const avgTime = totalSolvedCount > 0 ? (elapsedSeconds / totalSolvedCount).toFixed(1) : "0.0";
-
+      // 최초 1회만 set()으로 초기 데이터 생성 (이름 포함)
       database.ref('students/' + studentKey).set({
         name: studentName,
         mode: selectedMode,
         solvedCount: totalSolvedCount,
         wrongCount: wrongCount,
-        avgTime: parseFloat(avgTime),
+        avgTime: 0,
         lastActive: Date.now()
+      }).then(() => {
+        hasCreatedRecord = true;
+        listenToTeacherDelete();
       });
+
+      setInterval(updateLocalDisplay, 1000);
+      generateProblem();
+    }
+
+    // 서버로 즉시 쏘지 않고, 업데이트 대기 상태만 활성화
+    function sendDataToFirebase() {
+      if (!studentKey) return Promise.resolve();
+      pendingUpdate = true;
+      return Promise.resolve();
     }
 
     function updateLocalDisplay() {
@@ -732,23 +891,34 @@
         totalSolvedCount++;
         stageSolvedCount++;
 
+        clearCanvas();
+
+        let stageUp = false;
+
         if (selectedMode === 'multi' && stageSolvedCount >= MULTI_PASS_THRESHOLD) {
           selectedMode = 'div';
           stageSolvedCount = 0;
-          alert(`🎉 축하합니다! 곱셈 ${MULTI_PASS_THRESHOLD}문제를 모두 통과하여 '나눗셈' 단계로 진입합니다!`);
+          stageUp = true;
+          showStageModal('🎉 곱셈 단계 통과!', `곱셈 ${MULTI_PASS_THRESHOLD}문제를 모두 풀었습니다!\n다음 '나눗셈' 단계로 이동합니다.`);
         } else if (selectedMode === 'div' && stageSolvedCount >= DIV_PASS_THRESHOLD) {
           selectedMode = 'mix';
           stageSolvedCount = 0;
-          alert(`🎉 대단합니다! 나눗셈 ${DIV_PASS_THRESHOLD}문제를 통과하여 '무한의 문제' 단계에 진입합니다!`);
+          stageUp = true;
+          showStageModal('🎉 나눗셈 단계 통과!', `나눗셈 ${DIV_PASS_THRESHOLD}문제를 풀었습니다!\n최종 '무한의 문제' 단계에 진입합니다.`);
         }
 
         document.getElementById('display-student-info').textContent = `👤 ${studentName} (${getModeText(selectedMode)})`;
+        saveSessionData();
         updateLocalDisplay();
         sendDataToFirebase();
-        generateProblem();
+
+        if (!stageUp) {
+          generateProblem();
+        }
       } else {
         isChecking = true;
         wrongCount++;
+        saveSessionData();
         updateLocalDisplay();
         sendDataToFirebase();
 
